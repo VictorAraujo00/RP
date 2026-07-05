@@ -1,0 +1,5 @@
+model,Average Rank,SEM
+pure-lstm,1.74,0.1099536080279649
+pure-gru,1.94,0.11574073771730911
+pure-rnn,2.9,0.1
+hybrid,3.42,0.1668189780228

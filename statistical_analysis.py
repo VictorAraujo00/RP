@@ -85,14 +85,22 @@ class StatisticalAnalysis:
     def parse_model_id(self):
 
         print()
-
         print("Extraindo informações...")
 
+        # Extrai o nome do modelo
         self.df["model"] = (
             self.df["model_id"]
             .str.extract(
                 r'^[^-]+-(.+?)_Layers'
             )[0]
+            .str.lower()
+        )
+
+        # Normaliza os nomes dos modelos
+        self.df["model"] = (
+            self.df["model"]
+            .str.replace("detection-", "", regex=False)
+            .str.replace("detection_", "", regex=False)
         )
 
         self.df["layers"] = (
@@ -128,7 +136,6 @@ class StatisticalAnalysis:
         )
 
         print()
-
         print(self.df[
             [
                 "dataset",
@@ -137,6 +144,9 @@ class StatisticalAnalysis:
                 "iteration"
             ]
         ].head())
+
+        print("\nModelos encontrados:")
+        print(sorted(self.df["model"].unique()))
 
     def show_models(self):
 
@@ -174,23 +184,59 @@ class StatisticalAnalysis:
         print(f"MÉTRICA: {metric}")
         print("=" * 60)
 
-        # Filtra apenas a sequência desejada
-        df_seq = self.df[
-            self.df["sequence"] == sequence
-        ]
+        # Filtra os dados
+        if sequence == "TODAS":
+            df_seq = self.df.copy()
+            print("\nUtilizando TODAS as sequências.")
+        else:
+            df_seq = self.df[
+                self.df["sequence"] == sequence
+            ]
+            print(f"\nUtilizando apenas a sequência {sequence}.")
 
-        # Cria a tabela para o Friedman
-        table = df_seq.pivot_table(
-            index=[
-                "dataset",
-                "iteration"
-            ],
-            columns="model",
-            values=metric
-        )
+        print(f"Total de registros: {len(df_seq)}")
 
-        # Remove linhas incompletas
+        # Cria a tabela para o teste de Friedman
+        if sequence == "TODAS":
+
+            table = df_seq.pivot_table(
+                index=[
+                    "dataset",
+                    "sequence",
+                    "iteration"
+                ],
+                columns="model",
+                values=metric
+            )
+
+        else:
+
+            table = df_seq.pivot_table(
+                index=[
+                    "dataset",
+                    "iteration"
+                ],
+                columns="model",
+                values=metric
+            )
+
+        print("\nNúmero de experimentos antes do dropna:")
+        print(len(table))
+
+        print("\nValores ausentes por modelo:")
+        print(table.isna().sum())
+
+        # Remove experimentos incompletos
         table = table.dropna()
+
+        print("\nNúmero de experimentos depois do dropna:")
+        print(len(table))
+
+        if len(table) == 0:
+            raise ValueError(
+                "Nenhum experimento completo foi encontrado. "
+                "Verifique se todos os modelos possuem resultados."
+            )
 
         print()
         print("Tabela criada.")
@@ -555,7 +601,7 @@ if __name__ == "__main__":
 
     analysis.show_sequences()
 
-    MINHA_SEQUENCIA = 50 
+    MINHA_SEQUENCIA = "TODAS" 
     MINHA_METRICA = "auc_roc"
 
     # Agora passe essas variáveis para os métodos:
